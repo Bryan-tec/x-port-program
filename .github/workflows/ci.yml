@@ -14,6 +14,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check project files
+        run: |
+          pwd
+          ls -la
+          find . -maxdepth 2 -type f
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
