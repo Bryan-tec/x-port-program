@@ -14,14 +14,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Check project files
-        run: |
-          pwd
-          echo "=== ROOT FILES ==="
-          ls -la
-          echo "=== ALL PROJECT FILES ==="
-          find . -maxdepth 3 -type f | sort
-
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -32,12 +24,8 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
-      - name: Check Python files
-        run: |
-          python --version
-          python -c "import os; print(os.getcwd()); print(os.listdir('.'))"
-          python -c "import app; print(app.__file__)"
-
       - name: Run tests
         run: |
           python -m pytest -v tests/
+
+      
