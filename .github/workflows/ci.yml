@@ -17,8 +17,10 @@ jobs:
       - name: Check project files
         run: |
           pwd
+          echo "=== ROOT FILES ==="
           ls -la
-          find . -maxdepth 2 -type f
+          echo "=== ALL PROJECT FILES ==="
+          find . -maxdepth 3 -type f | sort
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -28,8 +30,14 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install -r requirements.txt
+
+      - name: Check Python files
+        run: |
+          python --version
+          python -c "import os; print(os.getcwd()); print(os.listdir('.'))"
+          python -c "import app; print(app.__file__)"
 
       - name: Run tests
         run: |
-          pytest tests/
+          python -m pytest -v tests/
