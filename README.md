@@ -10,10 +10,13 @@ Install Python and the Virtual Environment
     The venv installed did not have the 'activate' script
 
  - apt install python3.14-venv
-     - source venv/bin/activate
+    - source venv/bin/activate
 
  - pip install Flask
-     - pip freeze > requirements.txt
+    - pip freeze > requirements.txt
+
+ - pip install pytest
+    - grep pytest requirements.txt
 
 Validation commands:
     which python
