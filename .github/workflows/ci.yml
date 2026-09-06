@@ -7,7 +7,7 @@ name: xport ci pipeline
       - 'feature/**'
 
 jobs:
-  validate:
+  validation:
     runs-on: ubuntu-latest
 
     steps:
@@ -28,4 +28,22 @@ jobs:
         run: |
           python -m pytest -v tests/
 
-      
+  docker-build:
+    needs: validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build -t xport-app .
+
+      - name: Run Docker container
+        run: |
+          docker run -d -p 5500:5500 xport-app
+
+      - name: Test Docker container
+        run: |
+          sleep 5 # Wait for the container to start
+          curl http://localhost:5500
