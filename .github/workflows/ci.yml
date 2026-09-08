@@ -72,3 +72,22 @@ jobs:
         run: |
           sleep 5 # Wait for the container to start
           curl http://localhost:5500
+
+  upload-registry:
+    needs: docker-build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push Docker image
+        run: |
+          docker build -t xport-app .
+          docker tag xport-app ${{ secrets.DOCKER_USERNAME }}/xport-app:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/xport-app:latest
