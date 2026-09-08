@@ -54,7 +54,7 @@ jobs:
           python -m pytest --cov=app tests/
 
   docker-build:
-    needs: validation
+    needs: [validation, coverage]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
