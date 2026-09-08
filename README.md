@@ -23,7 +23,17 @@ Validation commands:
     python --version
     pip --version
 ```
-
+--------------------------------
+## Docker
+```
+run docker desktop from your local machine [Download Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/)
+```
+```
+docker build -t xport-app .
+```
+```
+docker run -d -p 5500:5500 xport-app
+```
 --------------------------------
 ## External Resources Used
 
