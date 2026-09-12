@@ -5,6 +5,9 @@ name: xport ci pipeline
     branches:
       - main
       - 'feature/**'
+    paths:
+      - '.github/workflows/ci.yml'
+      - 'app.py'
 
 jobs:
   validation:
