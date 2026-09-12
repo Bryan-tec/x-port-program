@@ -103,3 +103,22 @@ jobs:
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/xport-app:v${{ github.run_number }}
           docker push ${{ secrets.DOCKER_USERNAME }}/xport-app:latest
+
+  terraform-validation:
+    needs: upload-registry
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.6.0
+
+      - name: Test Terraform 
+        run: |
+          terraform fmt
+          terraform init -backend=false
+          terraform validate
