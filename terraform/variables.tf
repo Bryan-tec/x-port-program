@@ -1,9 +1,20 @@
-variable "name" {
-  type        = string
-  description = "This is the name of the general configuration"
+variable "project_id" {
+  type = string
 }
 
-variable "project" {
+variable "region" {
   type        = string
-  description = "GCP-PROYECT"
+  description = "us-central1"
+}
+
+variable "repository_name" {
+  type        = string
+  description = "Artifact Registry repository name"
+  default     = "xport-images"
+}
+
+variable "zone" {
+  type        = string
+  description = "us-central1-a"
+  default     = "us-central1-a"
 }
