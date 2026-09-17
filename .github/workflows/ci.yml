@@ -1,8 +1,7 @@
 name: xport ci pipeline
 
-"on":
-  workflow_dispatch:
-  # push:
+on:
+  push:
     branches:
       - main
       - 'feature/**'
@@ -179,3 +178,4 @@ jobs:
           else
             echo "| Terraform | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
           fi
+
