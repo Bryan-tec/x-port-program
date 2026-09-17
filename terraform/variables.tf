@@ -18,3 +18,9 @@ variable "zone" {
   description = "us-central1-a"
   default     = "us-central1-a"
 }
+
+variable "machine_type" {
+  type        = string
+  description = "Machine type for the VM instance"
+  default     = "e2-micro"
+}

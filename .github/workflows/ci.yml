@@ -1,7 +1,8 @@
 name: xport ci pipeline
 
 "on":
-  push:
+  workflow_dispatch:
+  # push:
     branches:
       - main
       - 'feature/**'
@@ -14,8 +15,8 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-
     runs-on: ${{ matrix.os }}
+    continue-on-error: false
     
     steps:
       - name: Checkout code
@@ -38,6 +39,7 @@ jobs:
   coverage:
     ##needs: validation
     runs-on: ubuntu-latest
+    continue-on-error: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -53,12 +55,14 @@ jobs:
           python -m pip install -r requirements.txt
 
       - name: Run tests with coverage
+        id: pytest
         run: |
           python -m pytest --cov=app tests/
 
   docker-build:
     needs: [validation, coverage]
     runs-on: ubuntu-latest
+    continue-on-error: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -72,6 +76,7 @@ jobs:
           docker run -d -p 5500:5500 xport-app
 
       - name: Test Docker container
+        id: test-docker
         run: |
           sleep 5 # Wait for the container to start
           curl http://localhost:5500
@@ -79,6 +84,7 @@ jobs:
   upload-registry:
     needs: docker-build
     runs-on: ubuntu-latest
+    continue-on-error: false
 
     steps:
       - name: Checkout code
@@ -100,6 +106,7 @@ jobs:
           docker tag xport-app ${{ secrets.DOCKER_USERNAME }}/xport-app:latest
 
       - name: Push Docker images
+        id: upload-registry
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/xport-app:v${{ github.run_number }}
           docker push ${{ secrets.DOCKER_USERNAME }}/xport-app:latest
@@ -107,6 +114,7 @@ jobs:
   terraform-validation:
     needs: upload-registry
     runs-on: ubuntu-latest
+    continue-on-error: false
 
     steps:
       - name: Checkout code
@@ -118,7 +126,56 @@ jobs:
           terraform_version: 1.6.0
 
       - name: Test Terraform 
+        id: terraform-check
         run: |
           terraform fmt
           terraform init -backend=false
           terraform validate
+
+  scorecard:
+    if: always()
+    needs:
+      - coverage
+      - validation
+      - docker-build
+      - terraform-validation
+      - upload-registry
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generate Scorecard
+        env:
+          TEST_RESULT: ${{ needs.coverage.result }}
+          DOCKER_RESULT: ${{ needs.docker-build.result }}
+          UPLOAD_REGISTRY_RESULT: ${{ needs.upload-registry.result }}
+          TERRAFORM_RESULT: ${{ needs.terraform-validation.result }}
+        run: |
+          echo "# 🚀 X-Port CI Scorecard" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$TEST_RESULT" = "success" ]; then
+            echo "| Pytest | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Pytest | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$DOCKER_RESULT" = "success" ]; then
+            echo "| Docker Build | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Docker Build | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$UPLOAD_REGISTRY_RESULT" = "success" ]; then
+            echo "| Upload Registry | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Upload Registry | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
+          fi          
+
+          if [ "$TERRAFORM_RESULT" = "success" ]; then
+            echo "| Terraform | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Terraform | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
+          fi
