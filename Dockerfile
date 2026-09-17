@@ -11,3 +11,4 @@ COPY . .
 EXPOSE 5500
 
 CMD ["python", "app.py"]
+
