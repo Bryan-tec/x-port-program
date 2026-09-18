@@ -80,38 +80,39 @@ jobs:
           sleep 5 # Wait for the container to start
           curl http://localhost:5500
           
-  upload-registry:
-    needs: docker-build
-    runs-on: ubuntu-latest
-    continue-on-error: false
+#  upload-registry:
+#    needs: docker-build
+#    runs-on: ubuntu-latest
+#    continue-on-error: false
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+#    steps:
+#      - name: Checkout code
+#        uses: actions/checkout@v4
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
+#      - name: Log in to Docker Hub
+#        uses: docker/login-action@v3
+#        with:
+#          username: ${{ secrets.DOCKER_USERNAME }}
+#          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build Docker image
-        run: |
-          docker build -t xport-app .
+#      - name: Build Docker image
+#        run: |
+#          docker build -t xport-app .
 
-      - name: Tag Docker image
-        run: |
-          docker tag xport-app ${{ secrets.DOCKER_USERNAME }}/xport-app:v${{ github.run_number }}
-          docker tag xport-app ${{ secrets.DOCKER_USERNAME }}/xport-app:latest
+#      - name: Tag Docker image
+#        run: |
+#          docker tag xport-app ${{ secrets.DOCKER_USERNAME }}/xport-app:v${{ github.run_number }}
+#          docker tag xport-app ${{ secrets.DOCKER_USERNAME }}/xport-app:latest
 
-      - name: Push Docker images
-        id: upload-registry
-        run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/xport-app:v${{ github.run_number }}
-          docker push ${{ secrets.DOCKER_USERNAME }}/xport-app:latest
+#      - name: Push Docker images
+#        id: upload-registry
+#        run: |
+#          docker push ${{ secrets.DOCKER_USERNAME }}/xport-app:v${{ github.run_number }}
+#          docker push ${{ secrets.DOCKER_USERNAME }}/xport-app:latest
 
   terraform-validation:
-    needs: upload-registry
+#    needs: upload-registry
+    needs: docker-build
     runs-on: ubuntu-latest
     continue-on-error: false
 
@@ -164,7 +165,7 @@ jobs:
       - validation
       - docker-build
       - terraform-validation
-      - upload-registry
+#      - upload-registry
 
     runs-on: ubuntu-latest
 
@@ -173,7 +174,7 @@ jobs:
         env:
           TEST_RESULT: ${{ needs.coverage.result }}
           DOCKER_RESULT: ${{ needs.docker-build.result }}
-          UPLOAD_REGISTRY_RESULT: ${{ needs.upload-registry.result }}
+#          UPLOAD_REGISTRY_RESULT: ${{ needs.upload-registry.result }}
           TERRAFORM_RESULT: ${{ needs.terraform-validation.result }}
         run: |
           echo "# 🚀 X-Port CI Scorecard" >> $GITHUB_STEP_SUMMARY
