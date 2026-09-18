@@ -206,7 +206,7 @@ jobs:
             echo "| Upload Registry | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| Upload Registry | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
-          fi          
+          fi           
 
           if [ "$TERRAFORM_RESULT" = "success" ]; then
             echo "| Terraform | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
