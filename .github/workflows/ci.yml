@@ -131,6 +131,14 @@ jobs:
         run: |
           terraform fmt
       #    terraform init -backend=false
+
+      - name: TEST
+        run: |
+          echo "ESTO SI PASA"
+          curl -I https://registry.terraform.io
+          curl -I https://releases.hashicorp.com
+
+          
       - name: Terraform Init
         working-directory: ./terraform
         run: |
