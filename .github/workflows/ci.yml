@@ -130,7 +130,7 @@ jobs:
           terraform fmt
           terraform init -backend=false
           terraform validate
-          terraform plan -out=tfplan -input=false
+          terraform plan
 
 #  terraform-deployment:
 #    needs: terraform-validation
