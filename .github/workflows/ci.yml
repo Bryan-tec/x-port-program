@@ -130,6 +130,25 @@ jobs:
           terraform fmt
           terraform init -backend=false
           terraform validate
+          terraform plan -out=tfplan -input=false
+
+#  terraform-deployment:
+#    needs: terraform-validation
+#    runs-on: ubuntu-latest
+#    continue-on-error: false
+
+#    steps:
+#      - name: Checkout code
+#        uses: actions/checkout@v4
+
+#      - name: Set up Terraform
+#        uses: hashicorp/setup-terraform@v2
+#        with:
+#          terraform_version: 1.6.0
+
+#      - name: Terraform Apply
+#        run: |
+#          terraform apply -auto-approve tfplan 
 
   scorecard:
     if: always()
