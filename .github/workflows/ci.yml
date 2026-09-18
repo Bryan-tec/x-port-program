@@ -1,6 +1,6 @@
 name: xport ci pipeline
 
-on:
+"on":
   push:
     branches:
       - main
