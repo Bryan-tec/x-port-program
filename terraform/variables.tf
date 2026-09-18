@@ -2,7 +2,7 @@ variable "project_id" {
   type = string
   description = "test-project"
 }
-
+  
 variable "region" {
   type        = string
   description = "us-central1"
