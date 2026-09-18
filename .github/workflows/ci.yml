@@ -79,7 +79,7 @@ jobs:
         run: |
           sleep 5 # Wait for the container to start
           curl http://localhost:5500
-
+          
   upload-registry:
     needs: docker-build
     runs-on: ubuntu-latest
@@ -130,7 +130,7 @@ jobs:
           terraform fmt
           terraform init -backend=false
           terraform validate
-          terraform plan
+          terraform plan -out=tfplan
 
 #  terraform-deployment:
 #    needs: terraform-validation
