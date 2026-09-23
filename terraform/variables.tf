@@ -1,11 +1,7 @@
 variable "project_id" {
-<<<<<<< HEAD
   type = string
-  description = "test-project"
-=======
-  type        = string
-  description = "Project ID where the resources will be deployed"
->>>>>>> a41de46 (Adding terraform configuration)
+  description = "Your GCP project ID"
+  default = "test-project-504013"
 }
   
 variable "region" {
