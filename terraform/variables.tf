@@ -1,11 +1,17 @@
 variable "project_id" {
+<<<<<<< HEAD
   type = string
   description = "test-project"
+=======
+  type        = string
+  description = "Project ID where the resources will be deployed"
+>>>>>>> a41de46 (Adding terraform configuration)
 }
   
 variable "region" {
   type        = string
-  description = "us-central1"
+  description = "region used to deploy the resources"
+  default     = "us-central1"
 }
 
 variable "repository_name" {
@@ -16,7 +22,7 @@ variable "repository_name" {
 
 variable "zone" {
   type        = string
-  description = "us-central1-a"
+  description = "zone used to deploy the resources"
   default     = "us-central1-a"
 }
 

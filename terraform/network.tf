@@ -13,21 +13,26 @@ resource "google_compute_subnetwork" "xport_subnet" {
 }
 
 # Create a firewall rule to allow internal traffic within the VPC
-resource "google_compute_firewall" "xport_firewall" {
+resource "google_compute_firewall" "firewall-port-5500" {
   name    = "xport-firewall"
+  network = google_compute_network.xport_network_main.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["5500"]
+  }
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["xport-app"]
+}
+
+resource "google_compute_firewall" "firewall-port-22" {
+  name    = "xport-firewall-ssh"
   network = google_compute_network.xport_network_main.name
 
   allow {
     protocol = "tcp"
     ports    = ["22"]
   }
-
-  allow {
-    protocol = "tcp"
-    ports    = ["5500"]
-  }
-
   source_ranges = ["0.0.0.0/0"]
-
-  target_tags = ["xport-app"]
+  target_tags   = ["xport-ssh"]
 }
