@@ -1,118 +1,117 @@
-name: xport ci pipeline
+# name: xport ci pipeline
 
-"on":
-   workflow_dispatch:
-  #   branches:
-  #     - main
-  #     - 'feature/**'
-  #   paths:
-  #     - '.github/workflows/ci.yml'
-  #     - 'app.py'
+# on:
+#   push:
+#     branches:
+#       - main
+#       - 'feature/**'
+#     paths:
+#       - '.github/workflows/ci.yml'
+#       - 'app.py'
 
-jobs:
-  validation:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    continue-on-error: false
+# jobs:
+#   validation:
+#     strategy:
+#       matrix:
+#         os: [ubuntu-latest, windows-latest, macos-latest]
+#     runs-on: ${{ matrix.os }}
+#     continue-on-error: false
     
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.14'
+#       - name: Set up Python
+#         uses: actions/setup-python@v6
+#         with:
+#           python-version: '3.14'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+#       - name: Install dependencies
+#         run: |
+#           python -m pip install --upgrade pip
+#           python -m pip install -r requirements.txt
 
-      - name: Run tests
-        run: |
-          python -m pytest -v tests/
+#       - name: Run tests
+#         run: |
+#           python -m pytest -v tests/
 
-  coverage:
-    ##needs: validation
-    runs-on: ubuntu-latest
-    continue-on-error: false
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+#   coverage:
+#     ##needs: validation
+#     runs-on: ubuntu-latest
+#     continue-on-error: false
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.14'
+#       - name: Set up Python
+#         uses: actions/setup-python@v6
+#         with:
+#           python-version: '3.14'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r requirements.txt
+#       - name: Install dependencies
+#         run: |
+#           python -m pip install --upgrade pip
+#           python -m pip install -r requirements.txt
 
-      - name: Run tests with coverage
-        id: pytest
-        run: |
-          python -m pytest --cov=app tests/
+#       - name: Run tests with coverage
+#         id: pytest
+#         run: |
+#           python -m pytest --cov=app tests/
 
-  docker-build:
-    needs: [validation, coverage]
-    runs-on: ubuntu-latest
-    continue-on-error: false
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+#   docker-build:
+#     needs: [validation, coverage]
+#     runs-on: ubuntu-latest
+#     continue-on-error: false
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: |
-          docker build -t xport-app .
+#       - name: Build Docker image
+#         run: |
+#           docker build -t xport-app .
 
-      - name: Run Docker container
-        run: |
-          docker run -d -p 5500:5500 xport-app
+#       - name: Run Docker container
+#         run: |
+#           docker run -d -p 5500:5500 xport-app
 
-      - name: Test Docker container
-        id: test-docker
-        run: |
-          sleep 5 # Wait for the container to start
-          curl http://localhost:5500
-          
-#  upload-registry:
-#    needs: docker-build
-#    runs-on: ubuntu-latest
-#    continue-on-error: false
+#       - name: Test Docker container
+#         id: test-docker
+#         run: |
+#           sleep 5 # Wait for the container to start
+#           curl http://localhost:5500
 
-#    steps:
-#      - name: Checkout code
-#        uses: actions/checkout@v4
+#   upload-registry:
+#     needs: docker-build
+#     runs-on: ubuntu-latest
+#     continue-on-error: false
 
-#      - name: Log in to Docker Hub
-#        uses: docker/login-action@v3
-#        with:
-#          username: ${{ secrets.DOCKER_USERNAME }}
-#          password: ${{ secrets.DOCKER_PASSWORD }}
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
 
-#      - name: Build Docker image
-#        run: |
-#          docker build -t xport-app .
+#       - name: Log in to Docker Hub
+#         uses: docker/login-action@v3
+#         with:
+#           username: ${{ secrets.DOCKER_USERNAME }}
+#           password: ${{ secrets.DOCKER_PASSWORD }}
 
-#      - name: Tag Docker image
-#        run: |
-#          docker tag xport-app ${{ secrets.DOCKER_USERNAME }}/xport-app:v${{ github.run_number }}
-#          docker tag xport-app ${{ secrets.DOCKER_USERNAME }}/xport-app:latest
+#       - name: Build Docker image
+#         run: |
+#           docker build -t xport-app .
 
-#      - name: Push Docker images
-#        id: upload-registry
-#        run: |
-#          docker push ${{ secrets.DOCKER_USERNAME }}/xport-app:v${{ github.run_number }}
-#          docker push ${{ secrets.DOCKER_USERNAME }}/xport-app:latest
+#       - name: Tag Docker image
+#         run: |
+#           docker tag xport-app ${{ secrets.DOCKER_USERNAME }}/xport-app:v${{ github.run_number }}
+#           docker tag xport-app ${{ secrets.DOCKER_USERNAME }}/xport-app:latest
+
+#       - name: Push Docker images
+#         id: upload-registry
+#         run: |
+#           docker push ${{ secrets.DOCKER_USERNAME }}/xport-app:v${{ github.run_number }}
+#           docker push ${{ secrets.DOCKER_USERNAME }}/xport-app:latest
 
 #   terraform-validation:
-# #    needs: upload-registry
-#     needs: docker-build
+#     needs: upload-registry
 #     runs-on: ubuntu-latest
 #     continue-on-error: false
 
@@ -123,48 +122,33 @@ jobs:
 #       - name: Set up Terraform
 #         uses: hashicorp/setup-terraform@v2
 #         with:
-#           terraform_version: 1.6.1
+#           terraform_version: 1.6.0
 
 #       - name: Test Terraform 
 #         id: terraform-check
-#         working-directory: ./terraform
 #         run: |
 #           terraform fmt
-#       #    terraform init -backend=false
-
-#       - name: TEST
-#         run: |
-#           echo "ESTO SI PASA"
-#           curl -I https://registry.terraform.io
-#           curl -I https://releases.hashicorp.com
-
-          
-#       - name: Terraform Init
-#         working-directory: ./terraform
-#         run: |
-#           rm -rf .terraform
-#           rm -f .terraform.lock.hcl
-#           terraform init -upgrade
+#           terraform init -backend=false
 #           terraform validate
-#           terraform plan -out=tfplan
+#           terraform plan
 
-#  terraform-deployment:
-#    needs: terraform-validation
-#    runs-on: ubuntu-latest
-#    continue-on-error: false
+# #  terraform-deployment:
+# #    needs: terraform-validation
+# #    runs-on: ubuntu-latest
+# #    continue-on-error: false
 
-#    steps:
-#      - name: Checkout code
-#        uses: actions/checkout@v4
+# #    steps:
+# #      - name: Checkout code
+# #        uses: actions/checkout@v4
 
-#      - name: Set up Terraform
-#        uses: hashicorp/setup-terraform@v2
-#        with:
-#          terraform_version: 1.6.0
+# #      - name: Set up Terraform
+# #        uses: hashicorp/setup-terraform@v2
+# #        with:
+# #          terraform_version: 1.6.0
 
-#      - name: Terraform Apply
-#        run: |
-#          terraform apply -auto-approve tfplan 
+# #      - name: Terraform Apply
+# #        run: |
+# #          terraform apply -auto-approve tfplan 
 
 #   scorecard:
 #     if: always()
@@ -173,7 +157,7 @@ jobs:
 #       - validation
 #       - docker-build
 #       - terraform-validation
-# #      - upload-registry
+#       - upload-registry
 
 #     runs-on: ubuntu-latest
 
@@ -182,7 +166,7 @@ jobs:
 #         env:
 #           TEST_RESULT: ${{ needs.coverage.result }}
 #           DOCKER_RESULT: ${{ needs.docker-build.result }}
-# #          UPLOAD_REGISTRY_RESULT: ${{ needs.upload-registry.result }}
+#           UPLOAD_REGISTRY_RESULT: ${{ needs.upload-registry.result }}
 #           TERRAFORM_RESULT: ${{ needs.terraform-validation.result }}
 #         run: |
 #           echo "# 🚀 X-Port CI Scorecard" >> $GITHUB_STEP_SUMMARY
@@ -206,7 +190,7 @@ jobs:
 #             echo "| Upload Registry | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
 #           else
 #             echo "| Upload Registry | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
-#           fi           
+#           fi          
 
 #           if [ "$TERRAFORM_RESULT" = "success" ]; then
 #             echo "| Terraform | ✅ PASS |" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,36 @@
+# https://docs.ansible.com/projects/ansible/latest/playbook_guide/playbooks_intro.html#playbook-syntax
+---
+- name: Configure VM
+  hosts: xport
+  remote_user: sudo
+
+  tasks:
+    - name: Update vm package
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: yes
+
+    - name: Install Python3 and pip
+      ansible.builtin.apt:
+        name:
+          - python3
+          - python3-pip
+          - flask
+          - gunicorn
+          - build-essential
+          - libssl-dev
+          - libffi-dev
+          - python3-dev
+        state: present
+
+    - name: Install Docker
+      ansible.builtin.apt:
+        name: docker.io
+        state: present
+
+    - name: Verification of Docker installation
+      ansible.builtin.command: docker --version
+      register: docker_version
+      changed_when: false
+
+#final    
