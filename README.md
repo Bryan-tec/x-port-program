@@ -1,210 +1,94 @@
 # X-Port Program
 
-Simple web application built with **Python, Flask, Docker, GitHub Actions, Terraform and Ansible**.
+X-Port is a small Flask application used to practice a complete infrastructure and deployment workflow with **Python, Docker, Terraform, Ansible, Google Cloud and GitHub Actions**.
 
-The purpose of this project is to build a small web application while implementing a complete CI/CD workflow, from testing the source code to deploying the application in Google Cloud.
+The application listens on port **5500** and is currently deployable to a Google Compute Engine VM as a Docker container.
 
----
-
-## Architecture
+## Current architecture
 
 ```text
-Developer
-   │
-   ▼
-GitHub
-   │
-   ▼
-GitHub Actions
-   │
-   ├── Python Tests
-   ├── Code Coverage
-   └── Docker Build
-          │
-          ▼
-     Container Registry
-          │
-          ▼
-      Google Cloud
-          │
-          ├── Terraform
-          │     └── Infrastructure
-          │
-          └── Ansible
-                └── VM Configuration
-                       │
-                       ▼
-                  Docker Container
-                       │
-                       ▼
-                   Flask App
+                         GitHub
+                            │
+                            ▼
+                     Source repository
+                            │
+               ┌────────────┴────────────┐
+               │                         │
+               ▼                         ▼
+          Docker image               Terraform
+               │                         │
+               ▼                         ▼
+           Docker Hub              Google Cloud
+                                         │
+                              ┌──────────┼──────────┐
+                              ▼          ▼          ▼
+                             VPC       Firewall   Compute VM
+                                                    │
+                                                    ▼
+                                                 Ansible
+                                                    │
+                                                    ▼
+                                                  Docker
+                                                    │
+                                                    ▼
+                                                X-Port App
+                                                    │
+                                                    ▼
+                                         http://<VM-IP>:5500
 ```
 
----
+### Google Cloud infrastructure
 
-# Requirements
+Terraform currently manages the application infrastructure in GCP:
 
-To run the application locally, install the following:
+- **Compute Engine:** one Debian 12 `e2-micro` VM.
+- **Boot disk:** 10 GB `pd-standard`.
+- **Region:** `us-central1`.
+- **Zone:** `us-central1-a`.
+- **VPC:** custom `xport-network-main`.
+- **Subnet:** `10.0.1.0/24`.
+- **Firewall:** TCP `5500` for the application and restricted TCP `22` for SSH.
+- **Terraform state:** remote GCS backend.
+- **Container image:** Docker Hub is the current deployment source.
 
-* Python 3.14+
-* Git
-* Docker (optional, if running the application as a container)
-* WSL Ubuntu (recommended when working from Windows)
+The Terraform configuration still contains the previous Artifact Registry resource and related variables/output. That resource is planned for removal now that Docker Hub is the selected container registry.
 
-For the Google Cloud deployment, the following tools will also be required:
+## Configuration management
 
-* Google Cloud CLI (`gcloud`)
-* Terraform
-* Ansible
+Ansible connects to the Compute Engine VM over SSH and is responsible for preparing the host and running the application container.
 
----
+Current responsibilities include:
 
-# 1. Clone the repository
+- Updating the VM packages.
+- Installing Docker.
+- Validating the Docker installation.
+- Pulling the application image from Docker Hub.
+- Running the container on port `5500`.
+
+The Ansible inventory must contain a valid VM public IP, SSH user and private-key path for the environment where it is executed.
+
+## Run locally
+
+### Requirements
+
+- Python 3.14+
+- Docker
+- Git
 
 Clone the repository:
 
 ```bash
 git clone https://github.com/Bryan-tec/x-port-program.git
-```
-
-Enter the project directory:
-
-```bash
 cd x-port-program
 ```
 
----
-
-# 2. Create the Python virtual environment
-
-Create a virtual environment:
+Run directly with Python:
 
 ```bash
-python3 -m venv venv
-```
-
-Activate it:
-
-```bash
+python -m venv venv
 source venv/bin/activate
-```
-
-After activation, the terminal should display something similar to:
-
-```text
-(venv)
-```
-
-Verify Python:
-
-```bash
-python --version
-```
-
-Verify pip:
-
-```bash
-pip --version
-```
-
----
-
-# 3. Install dependencies
-
-Install the dependencies defined in `requirements.txt`:
-
-```bash
 pip install -r requirements.txt
-```
-
----
-
-# 4. Run the Flask application
-
-Start the application:
-
-```bash
 python app.py
-```
-
-The application runs on port `5500`.
-
-Open a browser and navigate to:
-
-```text
-http://localhost:5500
-```
-
-You should see the X-Port application.
-
----
-
-# 5. Run the tests
-
-The project uses `pytest` for automated testing.
-
-Run the tests with:
-
-```bash
-python -m pytest -v tests/
-```
-
-Example output:
-
-```text
-collected 1 item
-
-tests/test_app.py::test_home_page PASSED
-
-1 passed
-```
-
-Every new feature should include the corresponding tests.
-
----
-
-# 6. Code coverage
-
-Code coverage can be executed using `pytest-cov`.
-
-Install it if it is not already included in `requirements.txt`:
-
-```bash
-pip install pytest-cov
-```
-
-Run:
-
-```bash
-python -m pytest --cov=. tests/
-```
-
-For an HTML report:
-
-```bash
-python -m pytest --cov=. --cov-report=html tests/
-```
-
-The report will be generated under:
-
-```text
-htmlcov/
-```
-
----
-
-# 7. Run the application with Docker
-
-Build the Docker image:
-
-```bash
-docker build -t xport-app .
-```
-
-Run the container:
-
-```bash
-docker run -p 5500:5500 xport-app
 ```
 
 Open:
@@ -213,339 +97,130 @@ Open:
 http://localhost:5500
 ```
 
-To see the running containers:
+Or run it with Docker:
 
 ```bash
-docker ps
+docker build -t xport-app .
+docker run -p 5500:5500 xport-app
 ```
 
-To stop the container:
+## Tests
+
+The application uses `pytest` and `pytest-cov`:
 
 ```bash
-docker stop <container_id>
+python -m pytest -v tests/
+python -m pytest --cov=app tests/
 ```
 
----
+## Deploy the infrastructure
 
-# 8. Docker Hub
+Additional requirements:
 
-The application image can be published to Docker Hub.
+- Google Cloud CLI
+- Terraform
+- Ansible
+- Access to a GCP project
 
-Repository:
+Terraform variables specific to an environment are kept outside Git in:
 
 ```text
-mrasaltanas/xport-images
+terraform/terraform.tfvars
 ```
 
-Example:
+The repository contains an example file showing the expected values.
+
+Before using Terraform, authenticate to Google Cloud with Application Default Credentials:
 
 ```bash
-docker tag xport-app mrasaltanas/xport-images:v1
+gcloud auth application-default login
 ```
 
-Push the image:
+From `terraform/`:
 
 ```bash
-docker push mrasaltanas/xport-images:v1
-```
-
-The `latest` tag can also be used:
-
-```bash
-docker tag xport-app mrasaltanas/xport-images:latest
-docker push mrasaltanas/xport-images:latest
-```
-
-The GitHub Actions pipeline is responsible for automatically building and publishing container images.
-
----
-
-# 9. GitHub Actions
-
-The CI pipeline is located at:
-
-```text
-.github/workflows/ci.yml
-```
-
-The pipeline currently performs several stages:
-
-```text
-Git Push
-   │
-   ▼
-GitHub Actions
-   │
-   ▼
-Install Python
-   │
-   ▼
-Install dependencies
-   │
-   ▼
-Run pytest
-   │
-   ▼
-Docker Build
-   │
-   ▼
-Docker Registry
-```
-
-The tests are executed automatically when the configured GitHub Actions workflow is triggered.
-
----
-
-# 10. Terraform
-
-Terraform is used to manage the Google Cloud infrastructure as code.
-
-Terraform configuration is located in:
-
-```text
-terraform/
-```
-
-Current structure:
-
-```text
-terraform/
-├── providers.tf
-├── variables.tf
-├── terraform.tfvars
-├── artifact_registry.tf
-├── iam.tf
-└── outputs.tf
-```
-
-Initialize Terraform:
-
-```bash
-cd terraform
 terraform init
-```
-
-Validate the configuration:
-
-```bash
 terraform validate
-```
-
-Create an execution plan:
-
-```bash
 terraform plan
-```
-
-Apply the infrastructure:
-
-```bash
 terraform apply
 ```
 
-> Do not run `terraform apply` unless you have reviewed the output of `terraform plan`.
+The configured GCS backend must exist and be accessible by the account running Terraform.
 
----
+Useful outputs:
 
-# 11. Google Cloud
-
-The application will eventually be deployed to Google Cloud.
-
-The planned infrastructure includes:
-
-```text
-Google Cloud
-│
-├── Artifact Registry
-│   └── xport-images
-│
-├── IAM
-│
-├── Workload Identity Federation
-│
-├── VPC Network
-│
-├── Firewall
-│
-└── Compute Engine VM
+```bash
+terraform output vm_instance_name
+terraform output vm_public_ip
 ```
 
-The Docker image will be stored in Google Artifact Registry using a format similar to:
+## Configure and deploy with Ansible
 
-```text
-REGION-docker.pkg.dev/PROJECT_ID/xport-images/xport-app:TAG
+After the VM exists, update `ansible/inventory.ini` with the correct VM IP, SSH user and key path.
+
+Validate connectivity:
+
+```bash
+ansible xport -i ansible/inventory.ini -m ping
 ```
 
-Example:
+Run the playbook:
 
-```text
-us-central1-docker.pkg.dev/my-project/xport-images/xport-app:v1
+```bash
+ansible-playbook -i ansible/inventory.ini ansible/playbook.yml
 ```
 
----
-
-# 12. Ansible
-
-Ansible will be used to configure the Google Cloud VM after Terraform creates the infrastructure.
-
-The planned responsibilities are:
+When deployment succeeds, the application is available at:
 
 ```text
-Terraform
-   │
-   ▼
-Create VM
-   │
-   ▼
-Ansible
-   │
-   ├── Configure operating system
-   ├── Install Docker
-   ├── Configure required services
-   ├── Authenticate with Artifact Registry
-   ├── Pull application image
-   └── Start application container
+http://<VM_PUBLIC_IP>:5500
 ```
 
-Ansible configuration will be located in:
-
-```text
-ansible/
-```
-
----
-
-# 13. Project structure
-
-Current project structure:
+## Project structure
 
 ```text
 x-port-program/
-│
 ├── .github/
 │   └── workflows/
-│       └── ci.yml
-│
+├── ansible/
+│   ├── inventory.ini
+│   └── playbook.yml
+├── terraform/
+│   ├── backend.tf
+│   ├── compute.tf
+│   ├── main.tf
+│   ├── network.tf
+│   ├── outputs.tf
+│   ├── providers.tf
+│   ├── terraform.tfvars.example.txt
+│   └── variables.tf
 ├── templates/
 │   └── index.html
-│
 ├── tests/
 │   └── test_app.py
-│
-├── terraform/
-│   ├── providers.tf
-│   ├── variables.tf
-│   ├── terraform.tfvars
-│   ├── artifact_registry.tf
-│   ├── iam.tf
-│   └── outputs.tf
-│
-├── ansible/
-│   └── ...
-│
 ├── app.py
-├── requirements.txt
 ├── Dockerfile
-├── .dockerignore
-├── .gitignore
+├── requirements.txt
 └── README.md
 ```
 
----
+## Current project status
 
-# 14. Local development workflow
+| Component | Status |
+| --- | --- |
+| Flask application | ✅ Working |
+| Automated tests and coverage | ✅ Working |
+| Docker image | ✅ Working |
+| Docker Hub deployment | ✅ Working |
+| Terraform infrastructure | ✅ Working |
+| GCS remote state | ✅ Working |
+| Compute Engine deployment | ✅ Working |
+| Ansible connectivity | ✅ Working |
+| Application reachable on VM port 5500 | ✅ Working |
+| Remove Artifact Registry from Terraform | 🔄 Pending |
+| Workload Identity Federation | 🔄 Pending |
+| GitHub Actions CI/CD | 🔄 Pending |
 
-For normal development:
+## Next stage
 
-```bash
-# Activate virtual environment
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run tests
-python -m pytest -v tests/
-
-# Start application
-python app.py
-```
-
-Then open:
-
-```text
-http://localhost:5500
-```
-
----
-
-# 15. Deployment workflow
-
-The final deployment workflow is planned as:
-
-```text
-                  Developer
-                      │
-                      ▼
-                  Git Push
-                      │
-                      ▼
-              GitHub Repository
-                      │
-                      ▼
-              GitHub Actions
-                      │
-          ┌───────────┴───────────┐
-          ▼                       ▼
-       Pytest                Docker Build
-          │                       │
-          ▼                       ▼
-        PASS                 Docker Image
-                                  │
-                                  ▼
-                         Artifact Registry
-                                  │
-                                  ▼
-                             Terraform
-                                  │
-                                  ▼
-                          Google Cloud VM
-                                  │
-                                  ▼
-                              Ansible
-                                  │
-                                  ▼
-                           Docker Container
-                                  │
-                                  ▼
-                            Flask Application
-                                  │
-                                  ▼
-                          http://<VM-IP>:5500
-```
-
----
-
-# Status
-
-| Component                    | Status         |
-| ---------------------------- | -------------- |
-| Flask application            | ✅ Completed    |
-| HTML template                | ✅ Completed    |
-| Python tests                 | ✅ Completed    |
-| GitHub Actions CI            | ✅ Completed    |
-| Docker image                 | ✅ Completed    |
-| Docker Hub                   | ✅ Completed    |
-| Code coverage                | ✅ Completed    |
-| Terraform                    | 🔄 In progress |
-| Artifact Registry            | 🔄 In progress |
-| Workload Identity Federation | 🔄 In progress |
-| Compute Engine               | 🔄 In progress |
-| Ansible                      | 🔄 In progress |
-| Automated deployment         | 🔄 In progress |
-
----
-
-## Goal
-
-The final goal of this project is to have a reproducible CI/CD pipeline where a change pushed to GitHub can be tested, containerized, stored in Google Artifact Registry, and deployed automatically to infrastructure managed by Terraform and configured with Ansible.
+The next phase is to remove the unused Artifact Registry configuration, configure **Workload Identity Federation** for GitHub Actions, and restore the CI/CD workflow so application builds, infrastructure validation and deployment can be automated without storing long-lived GCP credentials in GitHub.
