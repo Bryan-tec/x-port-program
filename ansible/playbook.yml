@@ -2,7 +2,8 @@
 ---
 - name: Configure VM
   hosts: xport
-  remote_user: sudo
+  remote_user: bryan
+  become: true
 
   tasks:
     - name: Update vm package
@@ -10,27 +11,34 @@
         update_cache: true
         upgrade: yes
 
-    - name: Install Python3 and pip
-      ansible.builtin.apt:
-        name:
-          - python3
-          - python3-pip
-          - flask
-          - gunicorn
-          - build-essential
-          - libssl-dev
-          - libffi-dev
-          - python3-dev
-        state: present
-
     - name: Install Docker
       ansible.builtin.apt:
         name: docker.io
         state: present
 
-    - name: Verification of Docker installation
-      ansible.builtin.command: docker --version
-      register: docker_version
-      changed_when: false
+    - name: Ensure Docker service is running
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
 
-#final    
+    - name: Add Ansible user to Docker group
+      ansible.builtin.user:
+        name: bryan
+        groups: docker
+        append: true
+
+    - name: Pull Docker image from Docker Hub
+      community.docker.docker_image:
+        name: mrasaltanas/xport-app
+        tag: latest
+        source: pull
+
+    - name: Initialize Docker container
+      community.docker.docker_container:
+        name: xport-app-container
+        image: mrasaltanas/xport-app:latest
+        state: started
+        restart_policy: always
+        published_ports:
+          - "5500:5500"   
