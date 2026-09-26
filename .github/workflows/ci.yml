@@ -232,10 +232,6 @@ jobs:
           echo "vm_public_ip=$(terraform output -raw vm_public_ip)" >> "$GITHUB_OUTPUT"
           echo "vm_instance_name=$(terraform output -raw vm_instance_name)" >> "$GITHUB_OUTPUT"
 
-
-
-
-
   ansible-config:
     needs: [terraform-apply]
     runs-on: ubuntu-latest
@@ -341,6 +337,7 @@ jobs:
 
       - name: Testing Environment
         working-directory: ansible
+        id: ansible-config
         run: |
           ansible xport -i inventory.generated.ini -m ping
 
@@ -371,6 +368,7 @@ jobs:
       - upload-registry
       - terraform-plan
       - terraform-apply
+      - ansible-config
 
     runs-on: ubuntu-latest
 
@@ -382,6 +380,7 @@ jobs:
           UPLOAD_REGISTRY_RESULT: ${{ needs.upload-registry.result }}
           TERRAFORM_PLAN_RESULT: ${{ needs.terraform-plan.result }}
           TERRAFORM_APPLY_RESULT: ${{ needs.terraform-apply }}
+          ANSIBLE_CONFIG: ${{ needs.ansible-config }}
         run: |
           echo "# 🚀 X-Port CI Scorecard" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -416,4 +415,10 @@ jobs:
             echo "| Terraform Apply | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
           else
             echo "| Terraform Apply | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$ANSIBLE_CONFIG" = "success" ]; then
+            echo "| Ansible Configuration | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Ansible Configuration | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
           fi
