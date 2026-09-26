@@ -17,7 +17,7 @@ resource "google_compute_instance" "xport-vm-micro" {
     access_config {}
   }
   metadata = {
-    enable_oslogin = "TRUE"
+    enable-oslogin = "TRUE"
   }
   tags = ["xport-app"]
 }

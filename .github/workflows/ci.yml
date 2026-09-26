@@ -237,12 +237,13 @@ jobs:
     needs: [terraform-apply]
     runs-on: ubuntu-latest
     continue-on-error: false
+
     env:
       VM_IP: ${{ needs.terraform-apply.outputs.vm_public_ip }}
       VM_NAME: ${{ needs.terraform-apply.outputs.vm_instance_name }}
       GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
       GCP_ZONE: ${{ vars.GCP_ZONE }}
-      vm_public_ip: ${{ steps.terraform-outputs.outputs.vm_public_ip }}
+
     permissions:
       contents: read
       id-token: write
@@ -269,7 +270,6 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install ansible-core
           ansible-galaxy collection install community.docker
-          sleep 120
 
 # -------ansible -> ssh -> ProxyCommand -> start-iap-tunnel command -> IAP -> VM:22-----------------------------      
       - name: Generate ephemeral SSH key
@@ -296,23 +296,7 @@ jobs:
 
           echo "username=$OSLOGIN_USER" >> "$GITHUB_OUTPUT"
 
-      - name: Test direct SSH connection
-        shell: bash
-        run: |
-          echo "Testing direct SSH connection..."
-
-          VM_EXTERNAL_IP=$(gcloud compute instances describe "${{ env.VM_NAME }}" \
-            --zone="${{ env.GCP_ZONE }}" \
-            --project="${{ env.GCP_PROJECT_ID }}" \
-            --format="get(networkInterfaces[0].accessConfigs[0].natIP)")
-
-          echo "VM external IP: ${vm_public_ip}"
-
-          ssh \
-            -o StrictHostKeyChecking=no \
-            -o ConnectTimeout=10 \
-            "${{ VARS.GCP_ANSIBLE_DEPLOY_SA }}@${VM_EXTERNAL_IP}" \
-            "echo 'Direct SSH connection successful' && hostname"
+          echo "OS Login user: $OSLOGIN_USER"
 
       - name: Generate Ansible inventory
         working-directory: ansible
@@ -336,56 +320,6 @@ jobs:
 
           cat inventory.generated.yml
 
-      - name: Generate Playbook
-        working-directory: ansible
-        env:
-          OSLOGIN_USER: ${{ steps.oslogin.outputs.username }}
-        run: |
-          cat > generated.playbook.yml <<'EOF'
-            ---
-            - name: Configure VM
-              hosts: xport
-              become: true
-
-              tasks:
-                - name: Update apt package
-                  ansible.builtin.apt:
-                    update_cache: true
-                    upgrade: yes
-
-                - name: Install Docker
-                  ansible.builtin.apt:
-                    name: docker.io
-                    state: present
-
-                - name: Ensure Docker service is running
-                  ansible.builtin.service:
-                    name: docker
-                    state: started
-                    enabled: true
-
-                - name: Add Ansible user to Docker group
-                  ansible.builtin.user:
-                    name: "{{ ansible_user }}"
-                    groups: docker
-                    append: true
-
-                - name: Pull Docker image from Docker Hub
-                  community.docker.docker_image:
-                    name: mrasaltanas/xport-app
-                    tag: latest
-                    source: pull
-
-                - name: Initialize Docker container
-                  community.docker.docker_container:
-                    name: xport-app-container
-                    image: mrasaltanas/xport-app:latest
-                    state: started
-                    restart_policy: always
-                    published_ports:
-                      - "5500:5500"
-            EOF
-
       - name: Wait for SSH availability
         working-directory: ansible
         run: |
@@ -406,16 +340,20 @@ jobs:
           exit 1
 # -----------------------------------------------------------------------------
 
-      - name: Testing Environment
+      - name: Configure VM with Ansible
         working-directory: ansible
-        id: ansible-config
         run: |
-          ansible xport -i inventory.generated.ini -m ping
+          ansible-playbook \
+            -i inventory.generated.yml \
+            playbook.yml
 
-      - name: Running Playbook
-        working-directory: ansible
+      - name: Validate deployed application
         run: |
-          ansible-playbook generated.playbook.yml -i inventory.generated.ini
+          curl \
+            --fail \
+            --retry 5 \
+            --retry-delay 5 \
+            "http://${VM_IP}:5500"
 
   scorecard:
     if: always()
