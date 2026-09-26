@@ -1,0 +1,419 @@
+name: xport ci pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+    paths:
+      - '.github/workflows/ci.yml'
+      - 'terraform/**'
+      - 'ansible/**'
+      - 'app.py'
+
+jobs:
+  validation:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    continue-on-error: false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Run tests
+        run: |
+          python -m pytest -v tests/
+
+  coverage:
+    needs: validation
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+
+      - name: Run tests with coverage
+        id: pytest
+        run: |
+          python -m pytest --cov=app tests/
+
+  docker-build:
+    needs: [validation, coverage]
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build -t xport-app .
+
+      - name: Run Docker container
+        run: |
+          docker run -d -p 5500:5500 xport-app
+
+      - name: Test Docker container
+        id: test-docker
+        run: |
+          sleep 5 # Wait for the container to start
+          curl http://localhost:5500
+
+  upload-registry:
+    needs: docker-build
+    runs-on: ubuntu-latest
+    continue-on-error: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Docker image
+        run: |
+          docker build -t xport-app .
+
+      - name: Tag Docker image
+        run: |
+          docker tag xport-app ${{ secrets.DOCKER_USERNAME }}/xport-app:v${{ github.run_number }}
+          docker tag xport-app ${{ secrets.DOCKER_USERNAME }}/xport-app:latest
+
+      - name: Push Docker images
+        id: upload-registry
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/xport-app:v${{ github.run_number }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/xport-app:latest
+
+  terraform-plan:
+    needs: docker-build
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+        # Auth using the WIF pool and the SA
+      - name: Authenticate Terraform Plan
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_TERRAFORM_PLAN_SA }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.6.0
+
+      - name: Terraform Format 
+        working-directory: terraform
+        run: |
+          terraform fmt -check
+          terraform validate
+
+      - name: Terraform init
+        working-directory: terraform
+        run: |
+          terraform init -input=false
+
+      - name: Terraform plan 
+        id: terraform-plan
+        working-directory: terraform
+        run: terraform plan -out=tfplan -input=false
+
+      - name: Upload Terraform Plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan
+          path: terraform/tfplan
+
+  terraform-apply:
+    needs: terraform-plan
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    # Steps to avoid conflicts
+    environment:
+      name: production
+    concurrency:
+      group: terraform-production
+      cancel-in-progress: false
+    outputs:
+      vm_public_ip: ${{ steps.terraform-outputs.outputs.vm_public_ip }}
+      vm_instance_name: ${{ steps.terraform-outputs.outputs.vm_instance_name }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+        # Auth using the WIF pool and the SA
+      - name: Authenticate Terraform Plan
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_TERRAFORM_APPLY_SA }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.6.0
+
+      - name: Terraform init
+        working-directory: terraform
+        run: |
+          terraform init -input=false
+
+      - name: Download tfPlan file created
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan
+          path: terraform         
+
+      # Extra step to validate if the tfplan file exist
+      - name: Verify Terraform Plan
+        working-directory: terraform
+        run: |
+          test -f tfplan || {
+            echo "ERROR: tfplan was not found"
+            exit 1
+          }
+
+          test -s tfplan || {
+            echo "ERROR: tfplan exists but is empty"
+            exit 1
+          }      
+
+      - name: Terraform Apply
+        working-directory: terraform
+        id: terraform-apply
+        run: |
+          terraform apply -input=false tfplan 
+
+      # Outputs needed for the ansible step
+      - name: Get Terraform Outputs
+        id: terraform-outputs
+        working-directory: terraform
+        run: |
+          echo "vm_public_ip=$(terraform output -raw vm_public_ip)" >> "$GITHUB_OUTPUT"
+          echo "vm_instance_name=$(terraform output -raw vm_instance_name)" >> "$GITHUB_OUTPUT"
+
+
+
+
+
+  ansible-config:
+    needs: [terraform-apply]
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    env:
+      VM_IP: ${{ needs.terraform-apply.outputs.vm_public_ip }}
+      VM_NAME: ${{ needs.terraform-apply.outputs.vm_instance_name }}
+      GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      GCP_ZONE: ${{ vars.GCP_ZONE }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate Ansible Deployment
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_ANSIBLE_DEPLOY_SA }}
+
+      # Step needed beacuse I'll run the IAP tunnel command connection to the VM
+      - name: Set Up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+
+      - name: Install Ansible
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ansible-core
+          ansible-galaxy collection install community.docker
+
+# -------ansible -> ssh -> ProxyCommand -> start-iap-tunnel command -> IAP -> VM:22-----------------------------      
+      - name: Generate ephemeral SSH key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keygen \
+           -t rsa \
+           -b 3072 \
+           -f ~/.ssh/xport_ansible \
+           -N ""
+
+      - name: Register SSH key with OS Login
+        run: |
+          gcloud compute os-login ssh-keys add \
+            --key-file="$HOME/.ssh/xport_ansible.pub" \
+            --project="$GCP_PROJECT_ID" \
+            --ttl=30m
+
+      - name: Get OS Login username
+        id: oslogin
+        run: |
+          OSLOGIN_USER=$(gcloud compute os-login describe-profile \
+            --format="value(posixAccounts[0].username)")
+
+          echo "username=$OSLOGIN_USER" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Ansible inventory
+        working-directory: ansible
+        env:
+          OSLOGIN_USER: ${{ steps.oslogin.outputs.username }}
+        run: |
+          cat > inventory.generated.yml <<EOF
+          all:
+            children:
+              xport:
+                hosts:
+                  ${VM_NAME}:
+                    ansible_host: ${VM_NAME}
+                    ansible_user: ${OSLOGIN_USER}
+                    ansible_ssh_private_key_file: ${HOME}/.ssh/xport_ansible
+                    ansible_ssh_common_args: >-
+                      -o ProxyCommand="gcloud compute start-iap-tunnel %h %p --listen-on-stdin --project=${GCP_PROJECT_ID} --zone=${GCP_ZONE} --verbosity=warning"
+                      -o StrictHostKeyChecking=no
+                      -o UserKnownHostsFile=/dev/null
+          EOF
+
+          cat inventory.generated.yml
+
+      - name: Wait for SSH availability
+        working-directory: ansible
+        run: |
+          for attempt in {1..12}; do
+            if ansible xport \
+              -i inventory.generated.yml \
+              -m ping; then
+
+              echo "VM is reachable through IAP"
+              exit 0
+            fi
+
+            echo "SSH not ready yet. Attempt ${attempt}/12"
+            sleep 10
+          done
+
+          echo "VM did not become reachable"
+          exit 1
+# -----------------------------------------------------------------------------
+
+      - name: Testing Environment
+        working-directory: ansible
+        run: |
+          ansible xport -i inventory.generated.ini -m ping
+
+      - name: Running Playbook
+        working-directory: ansible
+        run: |
+          ansible-playbook playbook.yml -i inventory.generated.ini
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  scorecard:
+    if: always()
+    needs:
+      - coverage
+      - validation
+      - docker-build
+      - upload-registry
+      - terraform-plan
+      - terraform-apply
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generate Scorecard
+        env:
+          TEST_RESULT: ${{ needs.coverage.result }}
+          DOCKER_RESULT: ${{ needs.docker-build.result }}
+          UPLOAD_REGISTRY_RESULT: ${{ needs.upload-registry.result }}
+          TERRAFORM_PLAN_RESULT: ${{ needs.terraform-plan.result }}
+          TERRAFORM_APPLY_RESULT: ${{ needs.terraform-apply }}
+        run: |
+          echo "# 🚀 X-Port CI Scorecard" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$TEST_RESULT" = "success" ]; then
+            echo "| Pytest | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Pytest | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$DOCKER_RESULT" = "success" ]; then
+            echo "| Docker Build | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Docker Build | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$UPLOAD_REGISTRY_RESULT" = "success" ]; then
+            echo "| Upload Registry | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Upload Registry | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
+          fi          
+
+          if [ "$TERRAFORM_PLAN_RESULT" = "success" ]; then
+            echo "| Terraform Plan | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Terraform Plan | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$TERRAFORM_APPLY_RESULT" = "success" ]; then
+            echo "| Terraform Apply | ✅ PASS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Terraform Apply | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
+          fi

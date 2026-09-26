@@ -33,6 +33,6 @@ resource "google_compute_firewall" "firewall-port-22" {
     protocol = "tcp"
     ports    = ["22"]
   }
-  source_ranges = ["187.188.58.28/32"]
+  source_ranges = ["187.188.58.28/20"]
   target_tags   = ["xport-app"]
 }
