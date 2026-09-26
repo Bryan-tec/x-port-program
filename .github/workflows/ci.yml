@@ -61,7 +61,7 @@ jobs:
           python -m pytest --cov=app tests/
 
   docker-build:
-    needs: [validation, coverage]
+    needs: validation
     runs-on: ubuntu-latest
     continue-on-error: false
     steps:
@@ -345,19 +345,6 @@ jobs:
         working-directory: ansible
         run: |
           ansible-playbook playbook.yml -i inventory.generated.ini
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   scorecard:
     if: always()

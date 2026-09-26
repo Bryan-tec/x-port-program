@@ -1,7 +1,7 @@
-resource "google_iam_workload_identity_pool" "xport-wif-pool" {
+resource "google_iam_workload_identity_pool" "github" {
   workload_identity_pool_id = "xport-wif-pool"
-  display_name              = "WIF Pool for the Service account used by GitHub Actions"
-  description               = "Workload Identity Pool for the Service account used by GitHub to run Terraform plan and apply"
+  display_name              = "X-Port GitHub Actions"
+  description               = "Workload Identity Pool for X-Port GitHub Actions"
 }
 
 resource "google_iam_workload_identity_pool_provider" "github" {
