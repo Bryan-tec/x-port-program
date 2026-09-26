@@ -136,7 +136,7 @@ jobs:
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: 1.6.0
+          terraform_version: 1.13.5
 
       - name: Terraform init
         working-directory: terraform
@@ -192,7 +192,7 @@ jobs:
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v4
         with:
-          terraform_version: 1.6.0
+          terraform_version: 1.13.5
 
       - name: Terraform init
         working-directory: terraform
@@ -241,7 +241,6 @@ jobs:
       VM_IP: ${{ needs.terraform-apply.outputs.vm_public_ip }}
       VM_NAME: ${{ needs.terraform-apply.outputs.vm_instance_name }}
       GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-      GCP_ZONE: ${{ vars.GCP_ZONE }}
     permissions:
       contents: read
       id-token: write
