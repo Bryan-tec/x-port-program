@@ -47,7 +47,7 @@
         host: 127.0.0.1
         port: 5500
         delay: 2
-        timeout:60
+        timeout: 60
 
     - name: Test X-Port application
       ansible.builtin.uri:
