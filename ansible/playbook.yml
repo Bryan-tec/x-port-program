@@ -2,11 +2,10 @@
 ---
 - name: Configure VM
   hosts: xport
-  remote_user: bryan
   become: true
 
   tasks:
-    - name: Update vm package
+    - name: Update apt package
       ansible.builtin.apt:
         update_cache: true
         upgrade: yes
@@ -24,7 +23,7 @@
 
     - name: Add Ansible user to Docker group
       ansible.builtin.user:
-        name: bryan
+        name: "{{ ansible_user }}"
         groups: docker
         append: true
 
@@ -42,3 +41,15 @@
         restart_policy: always
         published_ports:
           - "5500:5500"   
+# --------------------------------------------IA Suggestion ------------------------------------------------
+    - name: Test X-Port application
+      ansible.builtin.uri:
+        url: http://127.0.0.1:5500
+        method: GET
+        status_code: 200
+      register: xport_healthcheck
+
+    - name: Show application status
+      ansible.builtin.debug:
+        msg: "X-Port application is running successfully. HTTP status: {{ xport_healthcheck.status }}"
+# ---------------------------------------------------------------------------------------------------------

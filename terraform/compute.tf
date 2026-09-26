@@ -16,6 +16,9 @@ resource "google_compute_instance" "xport-vm-micro" {
     subnetwork = google_compute_subnetwork.xport_subnet.name
     access_config {}
   }
-
+  metadata = {
+    enable_oslogin = "TRUE"
+  }
   tags = ["xport-app"]
 }
+

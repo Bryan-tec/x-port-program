@@ -2,12 +2,26 @@ venv/
 __pycache__/
 *.pyc
 .pytest_cache/
-terraform/.terraform/
-terraform/*.tfstate
-terraform/*.tfstate.*
-terraform/terraform.tfvars
+
+# Terraform working directories
+**/.terraform/
+
+# Terraform state
+*.tfstate
+*.tfstate.*
+**/.terraform/
+
+# Terraform variables
+*.tfvars
 !*.tfvars.example
 
 # Terraform plan files
 *.tfplan
 tfplan
+
+# Terraform crash logs
+crash.log
+crash.*.log
+
+# Google GitHub Actions temporary credentials
+gha-creds-*.json
