@@ -241,6 +241,7 @@ jobs:
       VM_IP: ${{ needs.terraform-apply.outputs.vm_public_ip }}
       VM_NAME: ${{ needs.terraform-apply.outputs.vm_instance_name }}
       GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      GCP_ZONE: ${{ vars.GCP_ZONE }}
     permissions:
       contents: read
       id-token: write
