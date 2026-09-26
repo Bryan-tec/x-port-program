@@ -101,16 +101,16 @@ jobs:
         run: |
           docker build -t xport-app .
 
-#      - name: Tag Docker image
-#        run: |
-#          docker tag xport-app ${{ secrets.DOCKER_USERNAME }}/xport-app:v${{ github.run_number }}
-#          docker tag xport-app ${{ secrets.DOCKER_USERNAME }}/xport-app:latest
+      - name: Tag Docker image
+        run: |
+          docker tag xport-app ${{ secrets.DOCKER_USERNAME }}/xport-app:v${{ github.run_number }}
+          docker tag xport-app ${{ secrets.DOCKER_USERNAME }}/xport-app:latest
 
-#      - name: Push Docker images
-#        id: upload-registry
-#        run: |
-#          docker push ${{ secrets.DOCKER_USERNAME }}/xport-app:v${{ github.run_number }}
-#          docker push ${{ secrets.DOCKER_USERNAME }}/xport-app:latest
+      - name: Push Docker images
+        id: upload-registry
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/xport-app:v${{ github.run_number }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/xport-app:latest
 
   terraform-plan:
     needs: docker-build

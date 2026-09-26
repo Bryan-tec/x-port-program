@@ -10,7 +10,7 @@ def hello():
 
 # This line is to specify that the application needs to be run in debug mode and on port 5500.
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True, port=5500)
+    app.run(host='0.0.0.0', debug=False, port=5500)
 
 
 # port=5500 specifies that the application will run on port 5500.

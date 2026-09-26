@@ -41,15 +41,24 @@
         restart_policy: always
         published_ports:
           - "5500:5500"   
-# --------------------------------------------IA Suggestion ------------------------------------------------
+
+    - name: Wait for Application Port
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: 5500
+        delay: 2
+        timeout:60
+
     - name: Test X-Port application
       ansible.builtin.uri:
         url: http://127.0.0.1:5500
         method: GET
         status_code: 200
       register: xport_healthcheck
+      retries: 10
+      delay: 3
+      until: xport_healthcheck.status == 200
 
     - name: Show application status
       ansible.builtin.debug:
         msg: "X-Port application is running successfully. HTTP status: {{ xport_healthcheck.status }}"
-# ---------------------------------------------------------------------------------------------------------
