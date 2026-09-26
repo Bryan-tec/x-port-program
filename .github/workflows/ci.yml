@@ -119,7 +119,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
-
+    env:
+      TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -137,16 +138,16 @@ jobs:
         with:
           terraform_version: 1.6.0
 
+      - name: Terraform init
+        working-directory: terraform
+        run: |
+          terraform init -input=false
+
       - name: Terraform Format 
         working-directory: terraform
         run: |
           terraform fmt -check
           terraform validate
-
-      - name: Terraform init
-        working-directory: terraform
-        run: |
-          terraform init -input=false
 
       - name: Terraform plan 
         id: terraform-plan
