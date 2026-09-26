@@ -242,6 +242,7 @@ jobs:
       VM_NAME: ${{ needs.terraform-apply.outputs.vm_instance_name }}
       GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
       GCP_ZONE: ${{ vars.GCP_ZONE }}
+      vm_public_ip: ${{ steps.terraform-outputs.outputs.vm_public_ip }}
     permissions:
       contents: read
       id-token: write
@@ -305,7 +306,7 @@ jobs:
             --project="${{ env.GCP_PROJECT_ID }}" \
             --format="get(networkInterfaces[0].accessConfigs[0].natIP)")
 
-          echo "VM external IP: ${VM_EXTERNAL_IP}"
+          echo "VM external IP: ${vm_public_ip}"
 
           ssh \
             -o StrictHostKeyChecking=no \
