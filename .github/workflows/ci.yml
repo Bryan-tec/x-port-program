@@ -375,8 +375,8 @@ jobs:
           DOCKER_RESULT: ${{ needs.docker-build.result }}
           UPLOAD_REGISTRY_RESULT: ${{ needs.upload-registry.result }}
           TERRAFORM_PLAN_RESULT: ${{ needs.terraform-plan.result }}
-          TERRAFORM_APPLY_RESULT: ${{ needs.terraform-apply }}
-          ANSIBLE_CONFIG: ${{ needs.ansible-config }}
+          TERRAFORM_APPLY_RESULT: ${{ needs.terraform-apply.result }}
+          ANSIBLE_CONFIG: ${{ needs.ansible-config.result }}
         run: |
           echo "# 🚀 X-Port CI Scorecard" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
