@@ -295,6 +295,24 @@ jobs:
 
           echo "username=$OSLOGIN_USER" >> "$GITHUB_OUTPUT"
 
+      - name: Test direct SSH connection
+        shell: bash
+        run: |
+          echo "Testing direct SSH connection..."
+
+          VM_EXTERNAL_IP=$(gcloud compute instances describe "${{ env.VM_NAME }}" \
+            --zone="${{ env.GCP_ZONE }}" \
+            --project="${{ env.GCP_PROJECT_ID }}" \
+            --format="get(networkInterfaces[0].accessConfigs[0].natIP)")
+
+          echo "VM external IP: ${VM_EXTERNAL_IP}"
+
+          ssh \
+            -o StrictHostKeyChecking=no \
+            -o ConnectTimeout=10 \
+            "${{ VARS.GCP_ANSIBLE_DEPLOY_SA }}@${VM_EXTERNAL_IP}" \
+            "echo 'Direct SSH connection successful' && hostname"
+
       - name: Generate Ansible inventory
         working-directory: ansible
         env:
@@ -316,6 +334,56 @@ jobs:
           EOF
 
           cat inventory.generated.yml
+
+      - name: Generate Playbook
+        working-directory: ansible
+        env:
+          OSLOGIN_USER: ${{ steps.oslogin.outputs.username }}
+        run: |
+          cat > generated.playbook.yml <<'EOF'
+            ---
+            - name: Configure VM
+              hosts: xport
+              become: true
+
+              tasks:
+                - name: Update apt package
+                  ansible.builtin.apt:
+                    update_cache: true
+                    upgrade: yes
+
+                - name: Install Docker
+                  ansible.builtin.apt:
+                    name: docker.io
+                    state: present
+
+                - name: Ensure Docker service is running
+                  ansible.builtin.service:
+                    name: docker
+                    state: started
+                    enabled: true
+
+                - name: Add Ansible user to Docker group
+                  ansible.builtin.user:
+                    name: "{{ ansible_user }}"
+                    groups: docker
+                    append: true
+
+                - name: Pull Docker image from Docker Hub
+                  community.docker.docker_image:
+                    name: mrasaltanas/xport-app
+                    tag: latest
+                    source: pull
+
+                - name: Initialize Docker container
+                  community.docker.docker_container:
+                    name: xport-app-container
+                    image: mrasaltanas/xport-app:latest
+                    state: started
+                    restart_policy: always
+                    published_ports:
+                      - "5500:5500"
+            EOF
 
       - name: Wait for SSH availability
         working-directory: ansible
@@ -346,7 +414,7 @@ jobs:
       - name: Running Playbook
         working-directory: ansible
         run: |
-          ansible-playbook playbook.yml -i inventory.generated.ini
+          ansible-playbook generated.playbook.yml -i inventory.generated.ini
 
   scorecard:
     if: always()
