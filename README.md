@@ -1,90 +1,45 @@
 # X-Port Program
 
-X-Port is a small Flask application used to practice a complete infrastructure and deployment workflow with **Python, Docker, Terraform, Ansible, Google Cloud and GitHub Actions**.
+![X-Port project architecture](image/infra.jpeg)
 
-The application listens on port **5500** and is currently deployable to a Google Compute Engine VM as a Docker container.
+X-Port is a small Flask application used to practice an end-to-end deployment workflow with **Python, Docker, Terraform, Ansible, Google Cloud and GitHub Actions**.
 
-## Current architecture
+The application runs on port **5500** and is deployed as a Docker container on a Google Compute Engine VM.
+
+## Architecture
+
+The deployment flow is:
 
 ```text
-                         GitHub
-                            │
-                            ▼
-                     Source repository
-                            │
-               ┌────────────┴────────────┐
-               │                         │
-               ▼                         ▼
-          Docker image               Terraform
-               │                         │
-               ▼                         ▼
-           Docker Hub              Google Cloud
-                                         │
-                              ┌──────────┼──────────┐
-                              ▼          ▼          ▼
-                             VPC       Firewall   Compute VM
-                                                    │
-                                                    ▼
-                                                 Ansible
-                                                    │
-                                                    ▼
-                                                  Docker
-                                                    │
-                                                    ▼
-                                                X-Port App
-                                                    │
-                                                    ▼
-                                         http://<VM-IP>:5500
+GitHub Actions
+    │
+    ├── Tests and coverage
+    ├── Docker build and push → Docker Hub
+    ├── Terraform plan/apply → Google Cloud
+    └── Ansible → IAP + OS Login → Compute Engine VM
+                                      │
+                                      └── Docker → X-Port App :5500
 ```
 
-### Google Cloud infrastructure
+Terraform manages:
 
-Terraform currently manages the application infrastructure in GCP:
+- Custom VPC and subnet.
+- Debian 12 `e2-micro` Compute Engine VM.
+- TCP `5500` for the application.
+- TCP `22` restricted to the Google IAP range `35.235.240.0/20`.
+- OS Login for SSH access.
+- Remote Terraform state in Google Cloud Storage.
 
-- **Compute Engine:** one Debian 12 `e2-micro` VM.
-- **Boot disk:** 10 GB `pd-standard`.
-- **Region:** `us-central1`.
-- **Zone:** `us-central1-a`.
-- **VPC:** custom `xport-network-main`.
-- **Subnet:** `10.0.1.0/24`.
-- **Firewall:** TCP `5500` for the application and restricted TCP `22` for SSH.
-- **Terraform state:** remote GCS backend.
-- **Container image:** Docker Hub is the current deployment source.
-
-The Terraform configuration still contains the previous Artifact Registry resource and related variables/output. That resource is planned for removal now that Docker Hub is the selected container registry.
-
-## Configuration management
-
-Ansible connects to the Compute Engine VM over SSH and is responsible for preparing the host and running the application container.
-
-Current responsibilities include:
-
-- Updating the VM packages.
-- Installing Docker.
-- Validating the Docker installation.
-- Pulling the application image from Docker Hub.
-- Running the container on port `5500`.
-
-The Ansible inventory must contain a valid VM public IP, SSH user and private-key path for the environment where it is executed.
+GitHub Actions authenticates to GCP through **Workload Identity Federation**, and Ansible reaches the VM through **IAP** instead of exposing SSH to the Internet.
 
 ## Run locally
 
-### Requirements
-
-- Python 3.14+
-- Docker
-- Git
-
-Clone the repository:
+Requirements: Python 3.14+, Git and Docker.
 
 ```bash
 git clone https://github.com/Bryan-tec/x-port-program.git
 cd x-port-program
-```
 
-Run directly with Python:
-
-```bash
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -97,7 +52,7 @@ Open:
 http://localhost:5500
 ```
 
-Or run it with Docker:
+Or run with Docker:
 
 ```bash
 docker build -t xport-app .
@@ -106,121 +61,114 @@ docker run -p 5500:5500 xport-app
 
 ## Tests
 
-The application uses `pytest` and `pytest-cov`:
-
 ```bash
 python -m pytest -v tests/
 python -m pytest --cov=app tests/
 ```
 
-## Deploy the infrastructure
+## Terraform configuration
 
-Additional requirements:
+Create your local Terraform variables file from the included example:
 
-- Google Cloud CLI
-- Terraform
-- Ansible
-- Access to a GCP project
-
-Terraform variables specific to an environment are kept outside Git in:
-
-```text
-terraform/terraform.tfvars
+```bash
+cp terraform/terraform.tfvars.example terraform/terraform.tfvars
 ```
 
-The repository contains an example file showing the expected values.
+Example:
 
-Before using Terraform, authenticate to Google Cloud with Application Default Credentials:
+```hcl
+project_id      = "your-gcp-project-id"
+region          = "us-central1"
+zone            = "us-central1-a"
+machine_type    = "e2-micro"
+repository_name = "xport-images"
+```
+
+`terraform.tfvars` is ignored by Git and should not contain committed environment-specific values.
+
+The main Terraform configuration uses a GCS backend. Before the first `terraform init`, make sure the bucket configured in `terraform/backend.tf` exists and is accessible.
+
+## One-time GCP bootstrap
+
+The `terraform/bootstrap/` configuration creates the APIs, service accounts, IAM permissions and Workload Identity Federation resources required by GitHub Actions.
+
+Authenticate locally:
 
 ```bash
 gcloud auth application-default login
 ```
 
-From `terraform/`:
+Then run:
 
 ```bash
+cd terraform/bootstrap
 terraform init
-terraform validate
-terraform plan
-terraform apply
+terraform apply -var="project_id=YOUR_GCP_PROJECT_ID"
 ```
 
-The configured GCS backend must exist and be accessible by the account running Terraform.
+If this repository is forked or copied to another GitHub account, update the repository and owner IDs used in the bootstrap WIF/IAM configuration before applying it.
 
-Useful outputs:
+Use the bootstrap outputs to configure these GitHub Actions variables:
+
+```text
+GCP_PROJECT_ID
+GCP_ZONE
+GCP_WORKLOAD_IDENTITY_PROVIDER
+GCP_TERRAFORM_PLAN_SA
+GCP_TERRAFORM_APPLY_SA
+GCP_ANSIBLE_DEPLOY_SA
+```
+
+Docker Hub authentication is provided through:
+
+```text
+DOCKER_USERNAME
+DOCKER_PASSWORD
+```
+
+## Deployment
+
+The GitHub Actions workflow performs the deployment automatically:
+
+```text
+Validation
+   ↓
+Coverage
+   ↓
+Docker build / registry
+   ↓
+Terraform plan
+   ↓
+Terraform apply
+   ↓
+Ansible over IAP
+   ↓
+Application health check
+```
+
+Ansible installs and starts Docker, pulls the application image, runs the container on port `5500`, and validates the application from inside the VM.
+
+After a successful deployment, obtain the VM public IP with:
 
 ```bash
-terraform output vm_instance_name
-terraform output vm_public_ip
+cd terraform
+terraform output -raw vm_public_ip
 ```
 
-## Configure and deploy with Ansible
-
-After the VM exists, update `ansible/inventory.ini` with the correct VM IP, SSH user and key path.
-
-Validate connectivity:
-
-```bash
-ansible xport -i ansible/inventory.ini -m ping
-```
-
-Run the playbook:
-
-```bash
-ansible-playbook -i ansible/inventory.ini ansible/playbook.yml
-```
-
-When deployment succeeds, the application is available at:
+Then open:
 
 ```text
 http://<VM_PUBLIC_IP>:5500
 ```
 
-## Project structure
+## Main directories
 
 ```text
-x-port-program/
-├── .github/
-│   └── workflows/
-├── ansible/
-│   ├── inventory.ini
-│   └── playbook.yml
-├── terraform/
-│   ├── backend.tf
-│   ├── compute.tf
-│   ├── main.tf
-│   ├── network.tf
-│   ├── outputs.tf
-│   ├── providers.tf
-│   ├── terraform.tfvars.example.txt
-│   └── variables.tf
-├── templates/
-│   └── index.html
-├── tests/
-│   └── test_app.py
-├── app.py
-├── Dockerfile
-├── requirements.txt
-└── README.md
+.github/workflows/   GitHub Actions CI/CD
+ansible/             VM configuration and application deployment
+terraform/           GCP infrastructure
+terraform/bootstrap/ WIF, IAM and service-account bootstrap
+image/               Project architecture image
+templates/           Flask templates
+tests/               Application tests
 ```
-
-## Current project status
-
-| Component | Status |
-| --- | --- |
-| Flask application | ✅ Working |
-| Automated tests and coverage | ✅ Working |
-| Docker image | ✅ Working |
-| Docker Hub deployment | ✅ Working |
-| Terraform infrastructure | ✅ Working |
-| GCS remote state | ✅ Working |
-| Compute Engine deployment | ✅ Working |
-| Ansible connectivity | ✅ Working |
-| Application reachable on VM port 5500 | ✅ Working |
-| Remove Artifact Registry from Terraform | 🔄 Pending |
-| Workload Identity Federation | 🔄 Pending |
-| GitHub Actions CI/CD | 🔄 Pending |
-
-## Next stage
-
-The next phase is to remove the unused Artifact Registry configuration, configure **Workload Identity Federation** for GitHub Actions, and restore the CI/CD workflow so application builds, infrastructure validation and deployment can be automated without storing long-lived GCP credentials in GitHub.
