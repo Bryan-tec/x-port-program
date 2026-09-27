@@ -345,7 +345,8 @@ jobs:
         run: |
           ansible-playbook \
             -i inventory.generated.yml \
-            playbook.yml
+            playbook.yml \
+            -e "image_tag=v${GITHUB_RUN_MEMBER}"
 
       - name: Validate deployed application
         run: |
