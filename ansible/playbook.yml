@@ -30,13 +30,13 @@
     - name: Pull Docker image from Docker Hub
       community.docker.docker_image:
         name: mrasaltanas/xport-app
-        tag: latest
+        tag: "{{ image_tag }}"
         source: pull
 
     - name: Initialize Docker container
       community.docker.docker_container:
         name: xport-app-container
-        image: mrasaltanas/xport-app:latest
+        image: "mrasaltanas/xport-app:{{ image_tag }}"
         state: started
         restart_policy: always
         published_ports:
