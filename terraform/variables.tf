@@ -9,12 +9,6 @@ variable "region" {
   default     = "us-central1"
 }
 
-variable "repository_name" {
-  type        = string
-  description = "Artifact Registry repository name"
-  default     = "xport-images"
-}
-
 variable "zone" {
   type        = string
   description = "zone used to deploy the resources"

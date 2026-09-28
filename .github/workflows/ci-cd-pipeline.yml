@@ -113,7 +113,7 @@ jobs:
           docker push ${{ secrets.DOCKER_USERNAME }}/xport-app:latest
 
   terraform-plan:
-    needs: docker-build
+    needs: upload-registry
     runs-on: ubuntu-latest
     continue-on-error: false
     permissions:

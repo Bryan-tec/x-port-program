@@ -4,8 +4,7 @@ locals {
   terraform_apply_roles = toset([
     "roles/compute.instanceAdmin.v1",
     "roles/compute.networkAdmin",
-    "roles/compute.securityAdmin",
-    "roles/artifactregistry.admin"
+    "roles/compute.securityAdmin"
   ])
 }
 

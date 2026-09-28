@@ -1,7 +1,0 @@
-# Copy this file to terraform.tfvars and replace the values for your environment.
-
-project_id      = "your-gcp-project-id"
-region          = "us-central1"
-zone            = "us-central1-a"
-machine_type    = "e2-micro"
-repository_name = "xport-images"
