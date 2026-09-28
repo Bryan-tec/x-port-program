@@ -234,7 +234,7 @@ jobs:
           echo "vm_instance_name=$(terraform output -raw vm_instance_name)" >> "$GITHUB_OUTPUT"
 
   ansible-config:
-    needs: [terraform-apply]
+    needs: [terraform-apply, upload-registry]
     runs-on: ubuntu-latest
     continue-on-error: false
 
@@ -346,7 +346,7 @@ jobs:
           ansible-playbook \
             -i inventory.generated.yml \
             playbook.yml \
-            -e "image_tag=v${GITHUB_RUN_MEMBER}"
+            -e "image_tag=v${{ github.run_number }}"
 
       - name: Validate deployed application
         run: |
