@@ -6,7 +6,7 @@ on:
       - main
       - 'feature/**'
     paths:
-      - '.github/workflows/ci.yml'
+      - '.github/workflows/ci-cd-pipeline.yml'
       - 'terraform/**'
       - 'ansible/**'
       - 'app.py'
@@ -380,7 +380,7 @@ jobs:
           TERRAFORM_APPLY_RESULT: ${{ needs.terraform-apply.result }}
           ANSIBLE_CONFIG: ${{ needs.ansible-config.result }}
         run: |
-          echo "# 🚀 X-Port CI Scorecard" >> $GITHUB_STEP_SUMMARY
+          echo "# X-Port CI Scorecard" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
