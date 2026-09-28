@@ -10,6 +10,7 @@ on:
       - 'terraform/**'
       - 'ansible/**'
       - 'app.py'
+      - 'templates/index.html'
 
 jobs:
   validation:
