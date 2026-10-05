@@ -379,6 +379,7 @@ jobs:
           TERRAFORM_PLAN_RESULT: ${{ needs.terraform-plan.result }}
           TERRAFORM_APPLY_RESULT: ${{ needs.terraform-apply.result }}
           ANSIBLE_CONFIG: ${{ needs.ansible-config.result }}
+          VM_IP: ${{ needs.terraform-apply.outputs.vm_public_ip }}
         run: |
           echo "# X-Port CI Scorecard" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -420,3 +421,10 @@ jobs:
           else
             echo "| Ansible Configuration | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
           fi
+
+          if [ "$ANSIBLE_CONFIG" = "success" ]; then
+            echo "| Test VM | http://${VM_IP}:5500 |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Test VM | ❌ FAIL |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
